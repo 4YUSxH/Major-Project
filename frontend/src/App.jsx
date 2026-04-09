@@ -1,0 +1,61 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useAuthStore } from "./store/authStore";
+import { useThemeStore } from "./store/themeStore";
+
+// Pages
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import RegisterStaff from "./pages/RegisterStaff";
+import Dashboard from "./pages/Dashboard";
+import Layout from "./components/Layout";
+import TicketList from "./pages/TicketList";
+import TicketDetail from "./pages/TicketDetail";
+import CreateTicket from "./pages/CreateTicket";
+import KnowledgeBase from "./pages/KnowledgeBase";
+
+function App() {
+  const { fetchMe, user, isLoading } = useAuthStore();
+  const { initializeTheme } = useThemeStore();
+
+  useEffect(() => {
+    fetchMe();
+    initializeTheme();
+  }, [fetchMe, initializeTheme]);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900"><p className="text-slate-500 dark:text-slate-400 animate-pulse">Loading Application...</p></div>;
+  }
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+        <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+        <Route path="/register-staff" element={!user ? <RegisterStaff /> : <Navigate to="/" />} />
+        
+        {/* Protected Routes */}
+        <Route
+          path="/*"
+          element={
+            user ? (
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/tickets" element={<TicketList />} />
+                  <Route path="/tickets/new" element={<CreateTicket />} />
+                  <Route path="/tickets/:id" element={<TicketDetail />} />
+                  <Route path="/kb" element={<KnowledgeBase />} />
+                </Routes>
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
