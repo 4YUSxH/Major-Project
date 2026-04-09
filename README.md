@@ -1,4 +1,4 @@
-# Sathyabama Institute - Campus Help Desk System
+# Chameli Devi Group of Institutions - Campus Help Desk System
 
 A premium, high-contrast, scalable Support Portal designed to route, monitor, and resolve academic, administrative, and infrastructural requests with unparalleled speed.
 

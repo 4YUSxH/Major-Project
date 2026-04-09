@@ -1,4 +1,4 @@
-# 🎓 Sathyabama Help Desk - Team Operations & Testing Guide
+# 🎓 Chameli Devi Help Desk - Team Operations & Testing Guide
 
 This document is specifically written for the Major Project team members. Our application relies heavily on dynamic Role-Based Access Control (RBAC). The interface completely changes based on the type of user who is currently authenticated.
 
