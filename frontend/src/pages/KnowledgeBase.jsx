@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useKbStore } from "../store/kbStore";
 import { useAuthStore } from "../store/authStore";
-import { Plus, BookOpen, Search } from "lucide-react";
+import { Plus, BookOpen, Search, Trash2 } from "lucide-react";
 
 export default function KnowledgeBase() {
-  const { articles, fetchArticles, createArticle, isLoading } = useKbStore();
+  const { articles, fetchArticles, createArticle, deleteArticle, isLoading } = useKbStore();
   const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState(null);
   const [formData, setFormData] = useState({ title: "", content: "", category: "General" });
 
   useEffect(() => {
@@ -68,16 +69,30 @@ export default function KnowledgeBase() {
           <p className="text-gray-500 col-span-3 text-center py-8">No articles found matching your search.</p>
         ) : (
           filteredArticles.map(article => (
-            <div key={article._id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col h-full cursor-pointer">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="bg-primary-100 p-2 rounded-lg text-primary-600">
-                  <BookOpen size={20} />
+            <div 
+              key={article._id} 
+              onClick={() => setSelectedArticle(article)}
+              className="bg-white dark:bg-[#111111] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-neutral-800 hover:shadow-md hover:border-primary-500/30 dark:hover:border-primary-500/30 transition-all flex flex-col h-full cursor-pointer hover:-translate-y-1"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary-100 p-2 rounded-lg text-primary-600">
+                    <BookOpen size={20} />
+                  </div>
+                  <span className="text-sm font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-md">{article.category}</span>
                 </div>
-                <span className="text-sm font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-md">{article.category}</span>
+                {isStaff && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); deleteArticle(article._id); }}
+                    className="text-red-400 hover:text-red-600 dark:hover:bg-neutral-800 p-2 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{article.title}</h3>
-              <p className="text-gray-600 text-sm line-clamp-3 mb-4 flex-grow">{article.content}</p>
-              <div className="text-xs text-gray-400 mt-auto pt-4 border-t border-gray-50">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{article.title}</h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3 mb-4 flex-grow">{article.content}</p>
+              <div className="text-xs text-gray-400 dark:text-gray-500 mt-auto pt-4 border-t border-gray-50 dark:border-neutral-800">
                 By {article.author?.name || 'Staff'} • {new Date(article.createdAt).toLocaleDateString()}
               </div>
             </div>
@@ -123,6 +138,30 @@ export default function KnowledgeBase() {
                 <button type="submit" className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium">Publish Article</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Article View Modal */}
+      {selectedArticle && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-all">
+          <div className="bg-white dark:bg-[#111111] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-gray-100 dark:border-neutral-800 animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-8 py-6 border-b border-gray-100 dark:border-neutral-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0a0a0a]">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-3 py-1.5 rounded-full">{selectedArticle.category}</span>
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  By {selectedArticle.author?.name || 'HelpDesk Staff'} • {new Date(selectedArticle.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+              <button onClick={() => setSelectedArticle(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors">&times;</button>
+            </div>
+            <div className="p-8 overflow-y-auto w-full prose dark:prose-invert max-w-none">
+              <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-6 leading-tight">{selectedArticle.title}</h2>
+              <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap text-lg leading-relaxed">{selectedArticle.content}</div>
+            </div>
+            <div className="px-8 py-5 border-t border-gray-100 dark:border-neutral-800 bg-gray-50 dark:bg-[#0a0a0a] flex justify-end">
+              <button onClick={() => setSelectedArticle(null)} className="px-6 py-2.5 bg-gray-200 dark:bg-neutral-800 hover:bg-gray-300 dark:hover:bg-neutral-700 text-gray-800 dark:text-white rounded-lg font-medium transition-colors">Close</button>
+            </div>
           </div>
         </div>
       )}

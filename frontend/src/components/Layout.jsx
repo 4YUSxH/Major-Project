@@ -2,7 +2,7 @@ import Sidebar from "./Sidebar";
 
 export default function Layout({ children }) {
   return (
-    <div className="flex bg-gray-50 min-h-screen">
+    <div className="flex bg-gray-50 dark:bg-black min-h-screen transition-colors duration-300">
       <Sidebar />
       <main className="flex-1 overflow-x-hidden">
         {/* Top header could go here if needed */}

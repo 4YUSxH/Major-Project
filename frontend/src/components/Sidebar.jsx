@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Ticket, BookOpen, LogOut, Bell, CheckCircle } from "lucide-react";
+import { LayoutDashboard, Ticket, BookOpen, LogOut, Bell, CheckCircle, Moon, Sun, Megaphone } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import { useThemeStore } from "../store/themeStore";
 import { useNotificationStore } from "../store/notificationStore";
 import io from "socket.io-client";
 
@@ -10,6 +11,7 @@ let socket;
 export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
   const { notifications, unreadCount, fetchNotifications, markAsRead, addLiveNotification } = useNotificationStore();
   
   const [showNotifications, setShowNotifications] = useState(false);
@@ -30,13 +32,14 @@ export default function Sidebar() {
   }, [user, fetchNotifications, addLiveNotification]);
 
   const links = [
-    { name: "Dashboard", path: "/", icon: LayoutDashboard },
+    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Tickets", path: "/tickets", icon: Ticket },
+    { name: "Notice Board", path: "/announcements", icon: Megaphone },
     { name: "Knowledge Base", path: "/kb", icon: BookOpen },
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 h-screen sticky top-0 text-slate-300 flex flex-col z-50">
+    <aside className="w-64 bg-slate-900 dark:bg-[#0a0a0a] dark:border-r dark:border-neutral-800 h-screen sticky top-0 text-slate-300 flex flex-col z-50 transition-colors duration-300">
       <div className="p-6 flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
           <Ticket className="text-primary-500" /> HelpDesk
@@ -119,6 +122,9 @@ export default function Sidebar() {
             <p className="text-sm font-medium text-white block truncate">{user?.name}</p>
             <p className="text-xs text-slate-400 capitalize">{user?.role} {user?.department && `- ${user.department}`}</p>
           </div>
+          <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-white transition-colors ml-2 bg-slate-700/50 rounded-lg hover:bg-slate-700">
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
         <button
           onClick={logout}

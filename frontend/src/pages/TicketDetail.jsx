@@ -17,6 +17,7 @@ export default function TicketDetail() {
 
   useEffect(() => {
     if (currentTicket) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingStatus(currentTicket.status);
     }
   }, [currentTicket]);

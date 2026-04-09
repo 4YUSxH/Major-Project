@@ -14,6 +14,12 @@ import authRoutes from "./routes/authRoutes.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
 import kbRoutes from "./routes/kbRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import announcementRoutes from "./routes/announcementRoutes.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -75,10 +81,24 @@ app.use("/api/auth", authRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/kb", kbRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/announcements", announcementRoutes);
 
-app.get("/", (req, res) => {
-  res.send("API is running...");
-});
+// Expose the uploads folder statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Serve frontend in production
+if (process.env.NODE_ENV === "production") {
+  const __frontendDir = path.join(__dirname, "../frontend/dist");
+  app.use(express.static(__frontendDir));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__frontendDir, "index.html"));
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.send("API is running...");
+  });
+}
 
 // Setup Socket.io
 const server = http.createServer(app);

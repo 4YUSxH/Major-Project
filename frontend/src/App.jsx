@@ -13,6 +13,8 @@ import TicketList from "./pages/TicketList";
 import TicketDetail from "./pages/TicketDetail";
 import CreateTicket from "./pages/CreateTicket";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import Announcements from "./pages/Announcements";
+import Landing from "./pages/Landing";
 
 function App() {
   const { fetchMe, user, isLoading } = useAuthStore();
@@ -30,9 +32,10 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-        <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
-        <Route path="/register-staff" element={!user ? <RegisterStaff /> : <Navigate to="/" />} />
+        <Route path="/" element={!user ? <Landing /> : <Navigate to="/dashboard" />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+        <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
+        <Route path="/register-staff" element={!user ? <RegisterStaff /> : <Navigate to="/dashboard" />} />
         
         {/* Protected Routes */}
         <Route
@@ -41,11 +44,13 @@ function App() {
             user ? (
               <Layout>
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/" element={<Navigate replace to="/dashboard" />} />
                   <Route path="/tickets" element={<TicketList />} />
                   <Route path="/tickets/new" element={<CreateTicket />} />
                   <Route path="/tickets/:id" element={<TicketDetail />} />
                   <Route path="/kb" element={<KnowledgeBase />} />
+                  <Route path="/announcements" element={<Announcements />} />
                 </Routes>
               </Layout>
             ) : (

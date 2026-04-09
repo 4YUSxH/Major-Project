@@ -31,3 +31,21 @@ export const createArticle = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Delete a KB article
+// @route   DELETE /api/kb/:id
+// @access  Private (Staff/Admin)
+export const deleteArticle = async (req, res) => {
+  try {
+    const article = await Article.findById(req.params.id);
+
+    if (!article) {
+      return res.status(404).json({ message: "Article not found" });
+    }
+
+    await article.deleteOne();
+    res.status(200).json({ message: "Article removed" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

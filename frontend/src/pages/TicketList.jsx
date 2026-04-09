@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useTicketStore } from "../store/ticketStore";
 import { useAuthStore } from "../store/authStore";
 import { Link } from "react-router-dom";
@@ -7,7 +7,6 @@ import { Plus } from "lucide-react";
 export default function TicketList() {
   const { tickets, fetchTickets, isLoading } = useTicketStore();
   const { user } = useAuthStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchTickets();

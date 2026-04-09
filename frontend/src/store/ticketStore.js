@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import axios from "../utils/axios";
 
-export const useTicketStore = create((set, get) => ({
+export const useTicketStore = create((set) => ({
   tickets: [],
   currentTicket: null,
   messages: [],

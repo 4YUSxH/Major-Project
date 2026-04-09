@@ -1,5 +1,5 @@
 import express from "express";
-import { getArticles, createArticle } from "../controllers/kbController.js";
+import { getArticles, createArticle, deleteArticle } from "../controllers/kbController.js";
 import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -7,5 +7,8 @@ const router = express.Router();
 router.route("/")
   .get(getArticles)
   .post(protect, authorize("staff", "admin"), createArticle);
+
+router.route("/:id")
+  .delete(protect, authorize("staff", "admin"), deleteArticle);
 
 export default router;

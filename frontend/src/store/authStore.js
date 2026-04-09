@@ -50,7 +50,7 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await axios.get("/auth/me");
       set({ user: response.data, isLoading: false });
-    } catch (error) {
+    } catch (_err) {
       localStorage.removeItem("token");
       set({ user: null, token: null, isLoading: false });
     }

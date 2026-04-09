@@ -26,5 +26,14 @@ export const useKbStore = create((set) => ({
       set({ error: error.message, isLoading: false });
       return false;
     }
+  },
+
+  deleteArticle: async (id) => {
+    try {
+      await axios.delete(`/kb/${id}`);
+      set((state) => ({ articles: state.articles.filter((a) => a._id !== id) }));
+    } catch (error) {
+      set({ error: error.message });
+    }
   }
 }));
