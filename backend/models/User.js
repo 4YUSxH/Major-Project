@@ -24,6 +24,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "", // Empty for students, populated for staff if applicable
     },
+    hasSetupProfile: {
+      type: Boolean,
+      default: false,
+    },
+    branch: { type: String, default: "" },
+    semester: { type: String, default: "" },
+    year: { type: String, default: "" },
+    enrollmentNumber: { type: String, default: "" },
+    profileImage: { type: String, default: "" },
   },
   {
     timestamps: true,

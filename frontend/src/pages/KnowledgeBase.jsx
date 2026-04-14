@@ -1,27 +1,52 @@
 import { useState, useEffect } from "react";
 import { useKbStore } from "../store/kbStore";
 import { useAuthStore } from "../store/authStore";
-import { Plus, BookOpen, Search, Trash2 } from "lucide-react";
+import { Plus, BookOpen, Search, Trash2, Edit2 } from "lucide-react";
 
 export default function KnowledgeBase() {
-  const { articles, fetchArticles, createArticle, deleteArticle, isLoading } = useKbStore();
+  const { articles, fetchArticles, createArticle, updateArticle, deleteArticle, isLoading } = useKbStore();
   const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [formData, setFormData] = useState({ title: "", content: "", category: "General" });
+  const [isEditingContent, setIsEditingContent] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchArticles();
   }, [fetchArticles]);
 
-  const handleCreate = async (e) => {
+  const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
-    const success = await createArticle(formData);
+    let success;
+    if (isEditingContent) {
+      success = await updateArticle(editingId, formData);
+    } else {
+      success = await createArticle(formData);
+    }
+    
     if (success) {
       setShowModal(false);
       setFormData({ title: "", content: "", category: "General" });
+      setIsEditingContent(false);
+      setEditingId(null);
     }
+  };
+
+  const openCreateModal = () => {
+    setFormData({ title: "", content: "", category: "General" });
+    setIsEditingContent(false);
+    setEditingId(null);
+    setShowModal(true);
+  };
+
+  const openEditModal = (article, e) => {
+    e.stopPropagation();
+    setFormData({ title: article.title, content: article.content, category: article.category });
+    setIsEditingContent(true);
+    setEditingId(article._id);
+    setShowModal(true);
   };
 
   const filteredArticles = articles.filter(a => 
@@ -30,6 +55,7 @@ export default function KnowledgeBase() {
   );
 
   const isStaff = user?.role === "staff" || user?.role === "admin";
+  const canEdit = (article) => user?.role === "admin" || String(user?._id) === String(article.author?._id);
 
   return (
     <div>
@@ -40,7 +66,7 @@ export default function KnowledgeBase() {
         </div>
         {isStaff && (
           <button 
-            onClick={() => setShowModal(true)}
+            onClick={openCreateModal}
             className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
           >
             <Plus size={20} />
@@ -81,13 +107,21 @@ export default function KnowledgeBase() {
                   </div>
                   <span className="text-sm font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-md">{article.category}</span>
                 </div>
-                {isStaff && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); deleteArticle(article._id); }}
-                    className="text-red-400 hover:text-red-600 dark:hover:bg-neutral-800 p-2 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                {canEdit(article) && (
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={(e) => openEditModal(article, e)}
+                      className="text-gray-400 hover:text-primary-600 dark:hover:bg-neutral-800 p-2 rounded-lg transition-colors"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); deleteArticle(article._id); }}
+                      className="text-red-400 hover:text-red-600 dark:hover:bg-neutral-800 p-2 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 )}
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{article.title}</h3>
@@ -105,10 +139,10 @@ export default function KnowledgeBase() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-lg font-bold text-gray-900">Create New Article</h3>
+              <h3 className="text-lg font-bold text-gray-900">{isEditingContent ? "Edit Article" : "Create New Article"}</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreateOrUpdate} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                 <input
@@ -135,7 +169,7 @@ export default function KnowledgeBase() {
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium">Publish Article</button>
+                <button type="submit" disabled={isLoading} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium">{isEditingContent ? "Save Changes" : "Publish Article"}</button>
               </div>
             </form>
           </div>

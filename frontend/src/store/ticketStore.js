@@ -43,9 +43,9 @@ export const useTicketStore = create((set) => ({
     }
   },
 
-  updateTicketStatus: async (id, status) => {
+  updateTicket: async (id, updates) => {
     try {
-      const { data } = await axios.put(`/tickets/${id}`, { status });
+      const { data } = await axios.put(`/tickets/${id}`, updates);
       set((state) => ({
         currentTicket: state.currentTicket?._id === id ? data : state.currentTicket,
         tickets: state.tickets.map(t => t._id === id ? data : t)
@@ -58,8 +58,11 @@ export const useTicketStore = create((set) => ({
   addMessage: async (id, message) => {
     try {
       const { data } = await axios.post(`/tickets/${id}/messages`, { message });
-      // We rely on socket for real-time, but optimistic update is good
-      set((state) => ({ messages: [...state.messages, data] }));
+      // Prevent duplicates from socket race conditions
+      set((state) => {
+        if (state.messages.find(m => m._id === data._id)) return state;
+        return { messages: [...state.messages, data] };
+      });
     } catch (error) {
       console.error(error);
     }

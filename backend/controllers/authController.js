@@ -79,3 +79,50 @@ export const getMe = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Update user profile setup
+// @route   PUT /api/auth/profile
+// @access  Private
+export const updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { name, department, branch, semester, year, enrollmentNumber, profileImage } = req.body;
+
+    if (name) user.name = name;
+    if (department) user.department = department;
+    if (profileImage) user.profileImage = profileImage;
+
+    if (user.role === "student") {
+      if (branch) user.branch = branch;
+      if (semester) user.semester = semester;
+      if (year) user.year = year;
+      if (enrollmentNumber) user.enrollmentNumber = enrollmentNumber;
+    }
+
+    user.hasSetupProfile = true;
+
+    const updatedUser = await user.save();
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get staff members
+// @route   GET /api/auth/staff
+// @access  Private
+export const getStaff = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized as admin" });
+    }
+    const staffMembers = await User.find({ role: "staff" }).select("-password");
+    res.json(staffMembers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

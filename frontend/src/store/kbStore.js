@@ -35,5 +35,20 @@ export const useKbStore = create((set) => ({
     } catch (error) {
       set({ error: error.message });
     }
+  },
+
+  updateArticle: async (id, articleData) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await axios.put(`/kb/${id}`, articleData);
+      set((state) => ({
+        articles: state.articles.map((a) => a._id === id ? data : a),
+        isLoading: false
+      }));
+      return true;
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      return false;
+    }
   }
 }));

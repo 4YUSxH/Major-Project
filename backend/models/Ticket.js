@@ -12,7 +12,7 @@ const ticketSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["IT", "Admin", "Academic", "Other"],
+      enum: ["IT Support", "Academic", "Bus Service", "Facility Maintenance", "Financial", "Library", "Disciplinary", "Other", "Others"],
       default: "Other",
     },
     priority: {

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 export default function CreateTicket() {
-  const [formData, setFormData] = useState({ title: "", description: "", category: "IT", priority: "Medium" });
+  const [formData, setFormData] = useState({ title: "", description: "", category: "", department: "", priority: "" });
   const { createTicket, isLoading } = useTicketStore();
   const navigate = useNavigate();
 
@@ -64,27 +64,51 @@ export default function CreateTicket() {
             ></textarea>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
               <select
+                required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
-                <option value="IT">IT Support</option>
+                <option value="" disabled>Select Category</option>
+                <option value="IT Support">IT Support</option>
                 <option value="Academic">Academic</option>
-                <option value="Admin">Administration</option>
+                <option value="Bus Service">Bus Service</option>
+                <option value="Facility Maintenance">Facility Maintenance</option>
+                <option value="Financial">Financial/Fees</option>
+                <option value="Library">Library</option>
+                <option value="Disciplinary">Disciplinary</option>
                 <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Target Department</label>
+              <select
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                value={formData.department}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              >
+                <option value="" disabled>Select Department</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Law">Law</option>
+                <option value="Professional Studies">Professional Studies</option>
+                <option value="Pharmacy">Pharmacy</option>
+                <option value="Administration">Administration</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
               <select
+                required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white"
                 value={formData.priority}
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
               >
+                <option value="" disabled>Select priority</option>
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>

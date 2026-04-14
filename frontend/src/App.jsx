@@ -15,6 +15,8 @@ import CreateTicket from "./pages/CreateTicket";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import Announcements from "./pages/Announcements";
 import Landing from "./pages/Landing";
+import ProfileSetup from "./pages/ProfileSetup";
+import Profile from "./pages/Profile";
 
 function App() {
   const { fetchMe, user, isLoading } = useAuthStore();
@@ -36,23 +38,29 @@ function App() {
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
         <Route path="/register-staff" element={!user ? <RegisterStaff /> : <Navigate to="/dashboard" />} />
+        <Route path="/profile-setup" element={user && !user.hasSetupProfile ? <ProfileSetup /> : <Navigate to={user ? "/dashboard" : "/login"} />} />
         
         {/* Protected Routes */}
         <Route
           path="/*"
           element={
             user ? (
-              <Layout>
-                <Routes>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/" element={<Navigate replace to="/dashboard" />} />
-                  <Route path="/tickets" element={<TicketList />} />
-                  <Route path="/tickets/new" element={<CreateTicket />} />
-                  <Route path="/tickets/:id" element={<TicketDetail />} />
-                  <Route path="/kb" element={<KnowledgeBase />} />
-                  <Route path="/announcements" element={<Announcements />} />
-                </Routes>
-              </Layout>
+              user.hasSetupProfile ? (
+                <Layout>
+                  <Routes>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/" element={<Navigate replace to="/dashboard" />} />
+                    <Route path="/tickets" element={<TicketList />} />
+                    <Route path="/tickets/new" element={<CreateTicket />} />
+                    <Route path="/tickets/:id" element={<TicketDetail />} />
+                    <Route path="/kb" element={<KnowledgeBase />} />
+                    <Route path="/announcements" element={<Announcements />} />
+                    <Route path="/profile" element={<Profile />} />
+                  </Routes>
+                </Layout>
+              ) : (
+                <Navigate to="/profile-setup" />
+              )
             ) : (
               <Navigate to="/login" />
             )

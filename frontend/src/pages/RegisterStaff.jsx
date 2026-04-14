@@ -86,9 +86,11 @@ export default function RegisterStaff() {
                  value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                >
                  <option value="">Select Department</option>
-                 <option value="IT">IT Support</option>
-                 <option value="Admin">Administration</option>
-                 <option value="Academic">Academic</option>
+                 <option value="Engineering">Engineering</option>
+                 <option value="Law">Law</option>
+                 <option value="Professional Studies">Professional Studies</option>
+                 <option value="Pharmacy">Pharmacy</option>
+                 <option value="Administration">Administration</option>
                </select>
              </div>
           )}

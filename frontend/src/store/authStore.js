@@ -37,6 +37,21 @@ export const useAuthStore = create((set) => ({
     }
   },
 
+  updateProfile: async (profileData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await axios.put("/auth/profile", profileData);
+      set({ user: response.data, isLoading: false });
+      return true;
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || "An error occurred during profile update", 
+        isLoading: false 
+      });
+      return false;
+    }
+  },
+
   logout: () => {
     localStorage.removeItem("token");
     set({ user: null, token: null });

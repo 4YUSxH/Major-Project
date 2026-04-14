@@ -9,7 +9,7 @@ import { sendEmail } from "../utils/sendEmail.js";
 // @access  Private
 export const createTicket = async (req, res) => {
   try {
-    const { title, description, category, priority } = req.body;
+    const { title, description, category, priority, department } = req.body;
 
     const ticket = await Ticket.create({
       title,
@@ -17,7 +17,7 @@ export const createTicket = async (req, res) => {
       category: category || "Other",
       priority: priority || "Medium",
       student: req.user._id,
-      department: category, // Basic automatic routing logic based on category
+      department: department || "Other", // Route ticket to manually specified department
     });
 
     res.status(201).json(ticket);
@@ -35,7 +35,16 @@ export const getTickets = async (req, res) => {
     if (req.user.role === "student") {
       query.student = req.user._id;
     } else if (req.user.role === "staff") {
-      if (req.user.department) query.department = req.user.department;
+      if (req.user.department) {
+        query = {
+          $or: [
+            { department: req.user.department },
+            { assignedTo: req.user._id }
+          ]
+        };
+      } else {
+        query.assignedTo = req.user._id;
+      }
     }
 
     const tickets = await Ticket.find(query)
@@ -73,9 +82,18 @@ export const getTicketById = async (req, res) => {
   }
 };
 
-// @desc    Update ticket status / Assign
+// Status-change message map
+const STATUS_MESSAGES = {
+  Assigned:    (title) => `Your ticket "${title}" has been assigned to a staff member.`,
+  "In Progress": (title) => `Your ticket "${title}" is now being worked on.`,
+  Resolved:    (title) => `Your ticket "${title}" has been resolved. Please review and close it if satisfied.`,
+  Closed:      (title) => `Your ticket "${title}" has been closed.`,
+  Open:        (title) => `Your ticket "${title}" has been reopened and is in the queue.`,
+};
+
+// @desc    Update ticket status / Assign  (Student can reopen their own Closed/Resolved ticket)
 // @route   PUT /api/tickets/:id
-// @access  Private (Staff/Admin)
+// @access  Private
 export const updateTicket = async (req, res) => {
   try {
     const { status, assignedTo } = req.body;
@@ -86,10 +104,26 @@ export const updateTicket = async (req, res) => {
       return res.status(404).json({ message: "Ticket not found" });
     }
 
+    // Students: may ONLY reopen their own ticket (set status back to Open)
+    if (req.user.role === "student") {
+      const isOwner = ticket.student._id.toString() === req.user._id.toString();
+      const isReopenable = ["Closed", "Resolved"].includes(ticket.status);
+      const isReopenRequest = status === "Open";
+
+      if (!isOwner || !isReopenable || !isReopenRequest) {
+        return res.status(403).json({ message: "Students may only reopen their own closed tickets." });
+      }
+    }
+
+    // Only admins may assign
+    if (assignedTo && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only administrators can assign tickets." });
+    }
+
     const previousStatus = ticket.status;
-    
+
     if (status) ticket.status = status;
-    if (assignedTo) ticket.assignedTo = assignedTo;
+    if (assignedTo !== undefined) ticket.assignedTo = assignedTo || null;
 
     const updatedTicket = await ticket.save();
     const io = getIo();
@@ -97,29 +131,27 @@ export const updateTicket = async (req, res) => {
     // Emit socket event for real-time ticket metadata sync
     io.to(ticket._id.toString()).emit("ticket-updated", updatedTicket);
 
-    // If status changed to Resolved, notify student via Email & In-App Notification
-    if (status === "Resolved" && previousStatus !== "Resolved") {
-      const msg = `Your ticket "${ticket.title}" has been resolved by our staff.`;
-      
-      // 1. Create In-App Notification Database Entry
+    // Notify student on every status change
+    if (status && status !== previousStatus) {
+      const msgFn = STATUS_MESSAGES[status];
+      const msg = msgFn ? msgFn(ticket.title) : `Your ticket "${ticket.title}" status changed to ${status}.`;
+
       const notification = await Notification.create({
         user: ticket.student._id,
         message: msg,
         ticket: ticket._id,
       });
 
-      // 2. Emit Real-time Notification Event strictly to the student
-      // Note: We use student._id as a distinct channel if we set it up, but for now we broadcast
-      // or we can just expect the student to fetch/listen on their personal id room. 
-      // For simplicity, we emit globally uniquely addressed to them.
       io.emit(`notification-${ticket.student._id}`, notification);
 
-      // 3. Send Email
-      await sendEmail({
-        email: ticket.student.email,
-        subject: "Ticket Resolved",
-        message: `${msg}\n\nPlease check your dashboard for details.`,
-      });
+      // Send email only on Resolved
+      if (status === "Resolved") {
+        await sendEmail({
+          email: ticket.student.email,
+          subject: "Your Ticket Has Been Resolved",
+          message: `${msg}\n\nPlease check your dashboard for details.`,
+        });
+      }
     }
 
     res.json(updatedTicket);
@@ -136,7 +168,13 @@ export const addMessage = async (req, res) => {
     const { message } = req.body;
     const ticketId = req.params.id;
 
-    // Optional: check if ticket exists and user has access
+    const ticket = await Ticket.findById(ticketId)
+      .populate("student", "name email")
+      .populate("assignedTo", "name email");
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
 
     const newMessage = await Message.create({
       ticket: ticketId,
@@ -146,9 +184,37 @@ export const addMessage = async (req, res) => {
 
     const populatedMessage = await newMessage.populate("sender", "name role");
 
-    // Socket emission
+    // Socket emission — broadcast new message to everyone in the ticket room
     const io = getIo();
     io.to(ticketId.toString()).emit("new-message", populatedMessage);
+
+    // --- Cross-party notification ---
+    const senderName = req.user.name;
+    const senderRole = req.user.role;
+    let recipientId = null;
+
+    if (senderRole === "student") {
+      // Student messaged → notify assigned staff, or fall back to no-one if unassigned
+      if (ticket.assignedTo) {
+        recipientId = ticket.assignedTo._id;
+      }
+    } else {
+      // Staff / admin messaged → notify the student
+      recipientId = ticket.student._id;
+    }
+
+    if (recipientId) {
+      const notifMessage = `${senderName} sent a message on ticket "${ticket.title}"`;
+
+      const notification = await Notification.create({
+        user: recipientId,
+        message: notifMessage,
+        ticket: ticket._id,
+      });
+
+      // Emit real-time notification to recipient's personal channel
+      io.emit(`notification-${recipientId}`, notification);
+    }
 
     res.status(201).json(populatedMessage);
   } catch (error) {

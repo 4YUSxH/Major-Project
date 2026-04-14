@@ -43,8 +43,44 @@ export const deleteArticle = async (req, res) => {
       return res.status(404).json({ message: "Article not found" });
     }
 
+    if (req.user.role !== "admin" && article.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to delete this article" });
+    }
+
     await article.deleteOne();
     res.status(200).json({ message: "Article removed" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update a KB article
+// @route   PUT /api/kb/:id
+// @access  Private (Staff/Admin)
+export const updateArticle = async (req, res) => {
+  try {
+    const article = await Article.findById(req.params.id);
+
+    if (!article) {
+      return res.status(404).json({ message: "Article not found" });
+    }
+
+    if (req.user.role !== "admin" && article.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to update this article" });
+    }
+
+    const { title, content, category } = req.body;
+
+    if (title) article.title = title;
+    if (content) article.content = content;
+    if (category) article.category = category;
+
+    const updatedArticle = await article.save();
+    
+    // Repopulate author name for frontend
+    await updatedArticle.populate("author", "name");
+    
+    res.json(updatedArticle);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
