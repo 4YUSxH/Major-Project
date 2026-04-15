@@ -33,6 +33,13 @@ const userSchema = new mongoose.Schema(
     year: { type: String, default: "" },
     enrollmentNumber: { type: String, default: "" },
     profileImage: { type: String, default: "" },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+    },
   },
   {
     timestamps: true,

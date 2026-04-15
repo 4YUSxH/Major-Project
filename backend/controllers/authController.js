@@ -1,6 +1,8 @@
 import { User } from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
+import { sendEmail } from "../utils/sendEmail.js";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -18,26 +20,59 @@ export const registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate a secure random token for email verification
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       role: role || "student",
       department: department || "",
+      isVerified: false,
+      verificationToken,
     });
 
     if (user) {
-      res.status(201).json({
-        _id: user.id,
-        name: user.name,
+      // Send verification email
+      const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email/${verificationToken}`;
+      const message = `Please verify your email by clicking on the following link: \n\n${verificationUrl}`;
+
+      await sendEmail({
         email: user.email,
-        role: user.role,
-        department: user.department,
-        token: generateToken(user._id),
+        subject: "Verify your Email - Help Desk System",
+        message,
+      });
+
+      res.status(201).json({
+        message: "Registration successful. Please check your email inbox to verify your account.",
       });
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Verify user email
+// @route   GET /api/auth/verify-email/:token
+// @access  Public
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const user = await User.findOne({ verificationToken: token });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired verification token" });
+    }
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Email successfully verified. You can now log in." });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -52,6 +87,10 @@ export const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      if (user.isVerified === false) {
+        return res.status(401).json({ message: "Please verify your email address to log in." });
+      }
+
       res.json({
         _id: user.id,
         name: user.name,

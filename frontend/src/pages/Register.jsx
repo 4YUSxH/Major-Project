@@ -1,18 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useNavigate, Link } from "react-router-dom";
 
 export default function Register() {
   const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "student" });
-  const { register, isLoading, error } = useAuthStore();
+  const { register, isLoading, error, successMessage, clearMessages } = useAuthStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    clearMessages();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await register(formData);
-    const { user } = useAuthStore.getState();
-    if (user) {
-      navigate("/");
+    const success = await register(formData);
+    if (success) {
+      setFormData({ name: "", email: "", password: "", role: "student" });
     }
   };
 
@@ -27,6 +30,12 @@ export default function Register() {
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm text-center border border-red-100">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="bg-green-50 text-green-600 p-4 rounded-lg mb-6 text-sm text-center border border-green-100">
+            {successMessage}
           </div>
         )}
 

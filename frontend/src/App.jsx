@@ -7,6 +7,7 @@ import { useThemeStore } from "./store/themeStore";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import RegisterStaff from "./pages/RegisterStaff";
+import VerifyEmail from "./pages/VerifyEmail";
 import Dashboard from "./pages/Dashboard";
 import Layout from "./components/Layout";
 import TicketList from "./pages/TicketList";
@@ -19,7 +20,7 @@ import ProfileSetup from "./pages/ProfileSetup";
 import Profile from "./pages/Profile";
 
 function App() {
-  const { fetchMe, user, isLoading } = useAuthStore();
+  const { fetchMe, user, isCheckingAuth } = useAuthStore();
   const { initializeTheme } = useThemeStore();
 
   useEffect(() => {
@@ -27,7 +28,7 @@ function App() {
     initializeTheme();
   }, [fetchMe, initializeTheme]);
 
-  if (isLoading) {
+  if (isCheckingAuth) {
     return <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900"><p className="text-slate-500 dark:text-slate-400 animate-pulse">Loading Application...</p></div>;
   }
 
@@ -38,6 +39,7 @@ function App() {
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
         <Route path="/register-staff" element={!user ? <RegisterStaff /> : <Navigate to="/dashboard" />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/profile-setup" element={user && !user.hasSetupProfile ? <ProfileSetup /> : <Navigate to={user ? "/dashboard" : "/login"} />} />
         
         {/* Protected Routes */}
