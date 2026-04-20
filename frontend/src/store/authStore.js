@@ -39,21 +39,6 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  verifyEmail: async (token) => {
-    set({ isLoading: true, error: null, successMessage: null });
-    try {
-      const response = await axios.get(`/auth/verify-email/${token}`);
-      set({ isLoading: false, successMessage: response.data.message });
-      return true;
-    } catch (error) {
-      set({ 
-        error: error.response?.data?.message || "An error occurred during verification", 
-        isLoading: false 
-      });
-      return false;
-    }
-  },
-  
   clearMessages: () => set({ error: null, successMessage: null }),
 
   updateProfile: async (profileData) => {
@@ -65,6 +50,55 @@ export const useAuthStore = create((set) => ({
     } catch (error) {
       set({ 
         error: error.response?.data?.message || "An error occurred during profile update", 
+        isLoading: false 
+      });
+      return false;
+    }
+  },
+
+  staffList: [],
+
+  fetchStaff: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await axios.get("/auth/staff");
+      set({ staffList: response.data, isLoading: false });
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || "Failed to fetch staff", 
+        isLoading: false 
+      });
+    }
+  },
+
+  deleteStaff: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      await axios.delete(`/auth/staff/${id}`);
+      set((state) => ({
+        staffList: state.staffList.filter(staff => staff._id !== id),
+        isLoading: false,
+        successMessage: "Staff member removed successfully"
+      }));
+      return true;
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || "Failed to remove staff", 
+        isLoading: false 
+      });
+      return false;
+    }
+  },
+
+  addStaff: async (staffData) => {
+    set({ isLoading: true, error: null, successMessage: null });
+    try {
+      const response = await axios.post("/auth/add-staff", staffData);
+      set({ isLoading: false, successMessage: response.data.message });
+      return true;
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || "An error occurred while adding staff", 
         isLoading: false 
       });
       return false;

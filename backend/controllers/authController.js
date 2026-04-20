@@ -1,15 +1,17 @@
 import { User } from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
-import { sendEmail } from "../utils/sendEmail.js";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, department } = req.body;
+    const { name, email, password } = req.body;
+
+    if (!email.toLowerCase().endsWith('@cdgi.edu.in')) {
+      return res.status(400).json({ message: "Only @cdgi.edu.in email addresses are permitted for registration." });
+    }
 
     const userExists = await User.findOne({ email });
 
@@ -20,32 +22,18 @@ export const registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Generate a secure random token for email verification
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
-      role: role || "student",
-      department: department || "",
-      isVerified: false,
-      verificationToken,
+      role: "student",
+      department: "",
+      isVerified: true,
     });
 
     if (user) {
-      // Send verification email
-      const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email/${verificationToken}`;
-      const message = `Please verify your email by clicking on the following link: \n\n${verificationUrl}`;
-
-      await sendEmail({
-        email: user.email,
-        subject: "Verify your Email - Help Desk System",
-        message,
-      });
-
       res.status(201).json({
-        message: "Registration successful. Please check your email inbox to verify your account.",
+        message: "Registration successful. You can now log in.",
       });
     } else {
       res.status(400).json({ message: "Invalid user data" });
@@ -161,6 +149,73 @@ export const getStaff = async (req, res) => {
     }
     const staffMembers = await User.find({ role: "staff" }).select("-password");
     res.json(staffMembers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Add a staff or admin member
+// @route   POST /api/auth/add-staff
+// @access  Private (Admin only)
+export const addStaff = async (req, res) => {
+  try {
+    const { name, email, password, role, department } = req.body;
+
+    const userExists = await User.findOne({ email });
+
+    if (userExists) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: role === "admin" ? "admin" : "staff",
+      department: department || "",
+      isVerified: true,
+      hasSetupProfile: true,
+    });
+
+    res.status(201).json({
+      message: "Staff member added successfully.",
+      user: {
+        _id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete a staff or admin member
+// @route   DELETE /api/auth/staff/:id
+// @access  Private (Admin only)
+export const deleteStaff = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role !== "staff" && user.role !== "admin") {
+      return res.status(400).json({ message: "Can only delete staff or admin users through this route" });
+    }
+
+    if (user._id.toString() === req.user._id.toString()) {
+       return res.status(400).json({ message: "Cannot delete your own admin account" });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Staff member deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -55,9 +55,9 @@ export const useTicketStore = create((set) => ({
     }
   },
 
-  addMessage: async (id, message) => {
+  addMessage: async (id, message, isInternal = false) => {
     try {
-      const { data } = await axios.post(`/tickets/${id}/messages`, { message });
+      const { data } = await axios.post(`/tickets/${id}/messages`, { message, isInternal });
       // Prevent duplicates from socket race conditions
       set((state) => {
         if (state.messages.find(m => m._id === data._id)) return state;

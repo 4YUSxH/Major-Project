@@ -17,7 +17,7 @@ router.route("/")
 
 router.route("/:id")
   .get(protect, getTicketById)
-  .put(protect, authorize("staff", "admin"), updateTicket);
+  .put(protect, updateTicket);
 
 router.route("/:id/messages")
   .post(protect, addMessage)

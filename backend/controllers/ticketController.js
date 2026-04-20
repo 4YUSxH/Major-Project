@@ -165,7 +165,7 @@ export const updateTicket = async (req, res) => {
 // @access  Private
 export const addMessage = async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, isInternal } = req.body;
     const ticketId = req.params.id;
 
     const ticket = await Ticket.findById(ticketId)
@@ -180,6 +180,7 @@ export const addMessage = async (req, res) => {
       ticket: ticketId,
       sender: req.user._id,
       message,
+      isInternal: isInternal || false,
     });
 
     const populatedMessage = await newMessage.populate("sender", "name role");
@@ -193,18 +194,24 @@ export const addMessage = async (req, res) => {
     const senderRole = req.user.role;
     let recipientId = null;
 
-    if (senderRole === "student") {
-      // Student messaged → notify assigned staff, or fall back to no-one if unassigned
-      if (ticket.assignedTo) {
+    if (isInternal) {
+      if (ticket.assignedTo && req.user._id.toString() !== ticket.assignedTo._id.toString()) {
         recipientId = ticket.assignedTo._id;
       }
     } else {
-      // Staff / admin messaged → notify the student
-      recipientId = ticket.student._id;
+      if (senderRole === "student") {
+        if (ticket.assignedTo) {
+          recipientId = ticket.assignedTo._id;
+        }
+      } else {
+        recipientId = ticket.student._id;
+      }
     }
 
     if (recipientId) {
-      const notifMessage = `${senderName} sent a message on ticket "${ticket.title}"`;
+      const notifMessage = isInternal 
+        ? `${senderName} left an internal note on ticket "${ticket.title}"`
+        : `${senderName} sent a message on ticket "${ticket.title}"`;
 
       const notification = await Notification.create({
         user: recipientId,
@@ -227,7 +234,14 @@ export const addMessage = async (req, res) => {
 // @access  Private
 export const getMessages = async (req, res) => {
   try {
-    const messages = await Message.find({ ticket: req.params.id })
+    let query = { ticket: req.params.id };
+    
+    // Students cannot see internal messages
+    if (req.user.role === "student") {
+      query.isInternal = { $ne: true };
+    }
+
+    const messages = await Message.find(query)
       .populate("sender", "name role")
       .sort("createdAt");
     

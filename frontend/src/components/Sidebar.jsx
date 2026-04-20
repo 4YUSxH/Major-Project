@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Ticket, BookOpen, LogOut, Bell, CheckCircle, Moon, Sun, Megaphone } from "lucide-react";
+import { LayoutDashboard, Ticket, BookOpen, LogOut, Bell, CheckCircle, Moon, Sun, Megaphone, UserPlus } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/themeStore";
 import { useNotificationStore } from "../store/notificationStore";
@@ -37,6 +37,10 @@ export default function Sidebar() {
     { name: "Notice Board", path: "/announcements", icon: Megaphone },
     { name: "Knowledge Base", path: "/kb", icon: BookOpen },
   ];
+
+  if (user?.role === "admin") {
+    links.push({ name: "Add Staff/Admin", path: "/admin/add-staff", icon: UserPlus });
+  }
 
   return (
     <aside className="w-64 bg-slate-900 dark:bg-[#0a0a0a] dark:border-r dark:border-neutral-800 h-screen sticky top-0 text-slate-300 flex flex-col z-50 transition-colors duration-300">

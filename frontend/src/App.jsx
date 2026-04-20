@@ -7,7 +7,6 @@ import { useThemeStore } from "./store/themeStore";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import RegisterStaff from "./pages/RegisterStaff";
-import VerifyEmail from "./pages/VerifyEmail";
 import Dashboard from "./pages/Dashboard";
 import Layout from "./components/Layout";
 import TicketList from "./pages/TicketList";
@@ -38,8 +37,7 @@ function App() {
         <Route path="/" element={!user ? <Landing /> : <Navigate to="/dashboard" />} />
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
-        <Route path="/register-staff" element={!user ? <RegisterStaff /> : <Navigate to="/dashboard" />} />
-        <Route path="/verify-email/:token" element={<VerifyEmail />} />
+
         <Route path="/profile-setup" element={user && !user.hasSetupProfile ? <ProfileSetup /> : <Navigate to={user ? "/dashboard" : "/login"} />} />
         
         {/* Protected Routes */}
@@ -58,6 +56,7 @@ function App() {
                     <Route path="/kb" element={<KnowledgeBase />} />
                     <Route path="/announcements" element={<Announcements />} />
                     <Route path="/profile" element={<Profile />} />
+                    <Route path="/admin/add-staff" element={user.role === "admin" ? <RegisterStaff /> : <Navigate to="/dashboard" />} />
                   </Routes>
                 </Layout>
               ) : (

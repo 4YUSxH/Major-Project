@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTicketStore } from "../store/ticketStore";
 import { useAuthStore } from "../store/authStore";
-import { ArrowLeft, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, Send, RotateCcw, ShieldAlert } from "lucide-react";
 import io from "socket.io-client";
 
 let socket;
@@ -13,6 +13,7 @@ export default function TicketDetail() {
   const { fetchTicket, currentTicket, messages, addMessage, updateTicket, socketUpdateTicket, socketAddMessage, isLoading } = useTicketStore();
   const { user } = useAuthStore();
   const [reply, setReply] = useState("");
+  const [internalReply, setInternalReply] = useState("");
   const [pendingStatus, setPendingStatus] = useState("");
   const [staffList, setStaffList] = useState([]);
   const [pendingAssignedTo, setPendingAssignedTo] = useState("");
@@ -50,20 +51,47 @@ export default function TicketDetail() {
     return () => {
       socket.disconnect();
     };
-  }, [id, fetchTicket, socketAddMessage, socketUpdateTicket]);
+  }, [id, fetchTicket, socketAddMessage, socketUpdateTicket, user?.role]);
 
   const handleReply = async (e) => {
     e.preventDefault();
     if (!reply.trim()) return;
-    await addMessage(id, reply);
+    await addMessage(id, reply, false);
     setReply("");
   };
 
-  if (isLoading || !currentTicket) return <div className="p-8 text-center text-gray-500">Loading details...</div>;
+  const handleInternalReply = async (e) => {
+    e.preventDefault();
+    if (!internalReply.trim()) return;
+    await addMessage(id, internalReply, true);
+    setInternalReply("");
+  };
+
+  if (isLoading || !currentTicket) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
+        <div className="h-6 w-32 bg-gray-200 rounded"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-gray-100">
+               <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
+               <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 h-64"></div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 h-96"></div>
+        </div>
+      </div>
+    );
+  }
 
   const isStaff = user?.role === "staff" || user?.role === "admin";
   const isTicketOwner = user?.role === "student" && currentTicket.student?._id === user._id;
   const canReopen = isTicketOwner && ["Closed", "Resolved"].includes(currentTicket.status);
+
+  const mainMessages = messages.filter(m => !m.isInternal);
+  const internalMessages = messages.filter(m => m.isInternal);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -87,16 +115,19 @@ export default function TicketDetail() {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Discussion</h3>
             <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.sender._id === user._id ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] rounded-2xl p-4 ${msg.sender._id === user._id ? "bg-primary-600 text-white rounded-br-none" : "bg-gray-100 text-gray-800 rounded-bl-none"}`}>
+              {mainMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender?._id === user._id ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[80%] rounded-2xl p-4 ${msg.sender?._id === user._id ? "bg-primary-600 text-white rounded-br-none" : "bg-gray-100 text-gray-800 rounded-bl-none"}`}>
                     <p className="text-xs font-medium mb-1 opacity-70">
-                      {msg.sender.name} {msg.sender.role === 'staff' && '(Support)'}
+                      {msg.sender?.name || "[Deleted User]"} {msg.sender?.role === 'staff' && '(Support)'}
                     </p>
                     <p>{msg.message}</p>
                   </div>
                 </div>
               ))}
+              {mainMessages.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">No messages yet. Start the conversation!</p>
+              )}
             </div>
 
             <form onSubmit={handleReply} className="flex gap-2">
@@ -112,6 +143,47 @@ export default function TicketDetail() {
               </button>
             </form>
           </div>
+
+          {/* Internal Discussion Box - Only visible to Staff/Admin */}
+          {isStaff && (
+            <div className="bg-amber-50 p-6 rounded-2xl shadow-sm border border-amber-200">
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldAlert className="text-amber-600" size={20} />
+                <h3 className="text-lg font-bold text-amber-900">Talk to Teacher (Internal)</h3>
+              </div>
+              <p className="text-xs text-amber-700 mb-4 font-medium uppercase tracking-wider">
+                Students cannot see these messages
+              </p>
+              <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2">
+                {internalMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.sender?._id === user._id ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-2xl p-3 text-sm ${msg.sender?._id === user._id ? "bg-amber-600 text-white rounded-br-none" : "bg-white text-gray-800 border border-amber-200 rounded-bl-none"}`}>
+                      <p className="text-xs font-semibold mb-1 opacity-80">
+                        {msg.sender?.name || "[Deleted User]"}
+                      </p>
+                      <p>{msg.message}</p>
+                    </div>
+                  </div>
+                ))}
+                {internalMessages.length === 0 && (
+                  <p className="text-sm text-amber-600/70 text-center py-4">No internal discussion yet.</p>
+                )}
+              </div>
+
+              <form onSubmit={handleInternalReply} className="flex gap-2">
+                <input
+                  type="text"
+                  className="flex-1 px-4 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white placeholder-amber-300 text-amber-900"
+                  placeholder="Ask for an update or discuss internally..."
+                  value={internalReply}
+                  onChange={(e) => setInternalReply(e.target.value)}
+                />
+                <button type="submit" className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2 font-medium">
+                  <Send size={18} /> Internal Send
+                </button>
+              </form>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Info */}
@@ -121,7 +193,7 @@ export default function TicketDetail() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between border-b pb-2">
                 <span className="text-gray-500">Requester</span>
-                <span className="font-medium">{currentTicket.student?.name}</span>
+                <span className="font-medium">{currentTicket.student?.name || "[Deleted User]"}</span>
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-gray-500">Category</span>
@@ -142,7 +214,9 @@ export default function TicketDetail() {
               {currentTicket.assignedTo && (
                 <div className="flex justify-between pb-2 border-t pt-2 mt-2 border-gray-100">
                   <span className="text-gray-500">Assigned To</span>
-                  <span className="font-medium text-primary-600 dark:text-primary-400">{currentTicket.assignedTo.name}</span>
+                  <span className="font-medium text-primary-600 dark:text-primary-400">
+                    {currentTicket.assignedTo?.name || "[Deleted Staff]"}
+                  </span>
                 </div>
               )}
             </div>

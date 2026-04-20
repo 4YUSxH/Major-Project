@@ -16,6 +16,10 @@ const messageSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    isInternal: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

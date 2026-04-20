@@ -40,7 +40,35 @@ export default function TicketList() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-500">Loading tickets...</div>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="px-6 py-4 font-semibold text-sm text-gray-600">Ticket Details</th>
+                <th className="px-6 py-4 font-semibold text-sm text-gray-600">Status</th>
+                <th className="px-6 py-4 font-semibold text-sm text-gray-600">Priority</th>
+                <th className="px-6 py-4 font-semibold text-sm text-gray-600">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5].map((item) => (
+                <tr key={item} className="border-b border-gray-50 animate-pulse">
+                  <td className="px-6 py-4">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : tickets.length === 0 ? (
           <div className="p-12 text-center">
              <p className="text-gray-500 mb-4">No tickets found.</p>

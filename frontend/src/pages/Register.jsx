@@ -1,18 +1,29 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useNavigate, Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
   const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "student" });
+  const [showPassword, setShowPassword] = useState(false);
   const { register, isLoading, error, successMessage, clearMessages } = useAuthStore();
   const navigate = useNavigate();
 
+  const [localError, setLocalError] = useState("");
+
   useEffect(() => {
     clearMessages();
-  }, []);
+  }, [clearMessages]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLocalError("");
+    
+    if (!formData.email.toLowerCase().endsWith("@cdgi.edu.in")) {
+      setLocalError("Please use your official @cdgi.edu.in email address to register.");
+      return;
+    }
+    
     const success = await register(formData);
     if (success) {
       setFormData({ name: "", email: "", password: "", role: "student" });
@@ -27,9 +38,9 @@ export default function Register() {
           <p className="text-gray-500 dark:text-gray-400 mt-2">Join the Student Help Desk System</p>
         </div>
 
-        {error && (
+        {(error || localError) && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm text-center border border-red-100">
-            {error}
+            {error || localError}
           </div>
         )}
 
@@ -53,27 +64,37 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Student Data ID / Email</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">College Email Address</label>
             <input
               type="email"
               required
               className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-black text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-              placeholder="you@university.edu"
+              placeholder="student@cdgi.edu.in"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
+            <p className="text-xs text-gray-500 mt-1">Must be an @cdgi.edu.in email address</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-black text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                className="w-full px-4 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-black text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all pr-10"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <button
