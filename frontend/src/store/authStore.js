@@ -13,14 +13,39 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await axios.post("/auth/login", { email, password });
+      
+      if (response.data.step === "otp_required") {
+        set({ isLoading: false, successMessage: response.data.message });
+        return { step: "otp_required", email: response.data.email };
+      }
+
       const { token, ...userData } = response.data;
       localStorage.setItem("token", token);
-      set({ user: userData, token, isLoading: false });
+      set({ user: userData, token, isLoading: false, successMessage: null });
+      return { step: "success" };
     } catch (error) {
       set({ 
         error: error.response?.data?.message || "An error occurred during login", 
         isLoading: false 
       });
+      return { step: "error" };
+    }
+  },
+
+  verifyLogin: async (email, otp) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await axios.post("/auth/login-verify", { email, otp });
+      const { token, ...userData } = response.data;
+      localStorage.setItem("token", token);
+      set({ user: userData, token, isLoading: false, successMessage: null });
+      return true;
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || "Invalid or expired OTP", 
+        isLoading: false 
+      });
+      return false;
     }
   },
 
@@ -28,11 +53,32 @@ export const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null, successMessage: null });
     try {
       const response = await axios.post("/auth/register", userData);
+      
+      if (response.data.step === "otp_required") {
+        set({ isLoading: false, successMessage: response.data.message });
+        return { step: "otp_required", email: response.data.email };
+      }
+
+      set({ isLoading: false, successMessage: response.data.message });
+      return { step: "success" };
+    } catch (error) {
+      set({ 
+        error: error.response?.data?.message || "An error occurred during registration", 
+        isLoading: false 
+      });
+      return { step: "error" };
+    }
+  },
+
+  verifyRegistration: async (email, otp) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await axios.post("/auth/register-verify", { email, otp });
       set({ isLoading: false, successMessage: response.data.message });
       return true;
     } catch (error) {
       set({ 
-        error: error.response?.data?.message || "An error occurred during registration", 
+        error: error.response?.data?.message || "Invalid or expired OTP", 
         isLoading: false 
       });
       return false;

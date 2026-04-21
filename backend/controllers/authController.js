@@ -1,8 +1,43 @@
 import { User } from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
 import bcrypt from "bcryptjs";
+import { Resend } from "resend";
+import dotenv from "dotenv";
 
-// @desc    Register a new user
+dotenv.config();
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const sendOTPEmail = async (email, otp, type) => {
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const subject = type === "register" ? "Verify your Student Registration" : "Login Verification Code";
+    const title = type === "register" ? "Welcome to HelpDesk! Verify your email." : "Your HelpDesk Login Verification Code";
+    
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: email,
+      subject: subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">${title}</h2>
+          <p>Please use the following 6-digit verification code to complete your ${type === "register" ? "registration" : "login"}:</p>
+          <div style="background-color: #f4f4f4; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <h1 style="letter-spacing: 5px; margin: 0; color: #4338ca;">${otp}</h1>
+          </div>
+          <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes.</p>
+          <p style="color: #666; font-size: 14px;">If you did not request this code, please ignore this email.</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (error) {
+    console.error("Resend Email Error:", error);
+    return false;
+  }
+};
+
+// @desc    Register a new user (Init Phase)
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = async (req, res) => {
@@ -13,60 +48,99 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "Only @cdgi.edu.in email addresses are permitted for registration." });
     }
 
-    const userExists = await User.findOne({ email });
+    let userExists = await User.findOne({ email });
 
-    if (userExists) {
-      return res.status(400).json({ message: "User already exists" });
+    if (userExists && userExists.isVerified) {
+      return res.status(400).json({ message: "User already exists." });
     }
 
+    const otp = generateOTP();
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: "student",
-      department: "",
-      isVerified: true,
-    });
-
-    if (user) {
-      res.status(201).json({
-        message: "Registration successful. You can now log in.",
-      });
-    } else {
-      res.status(400).json({ message: "Invalid user data" });
+    
+    // Auto-verify test student
+    if (email === "teststudent@cdgi.edu.in") {
+      if (!userExists) {
+        const hashedPassword = await bcrypt.hash(password, salt);
+        await User.create({
+          name,
+          email,
+          password: hashedPassword,
+          role: "student",
+          department: "",
+          isVerified: true,
+        });
+      }
+      return res.status(200).json({ step: "success", message: "Registration complete. You can now log in." });
     }
+
+    const hashedOtp = await bcrypt.hash(otp, salt);
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    if (userExists && !userExists.isVerified) {
+       // Update unverified attempt
+       const hashedPassword = await bcrypt.hash(password, salt);
+       userExists.name = name;
+       userExists.password = hashedPassword;
+       userExists.otp = hashedOtp;
+       userExists.otpExpires = otpExpires;
+       await userExists.save();
+    } else {
+       const hashedPassword = await bcrypt.hash(password, salt);
+       await User.create({
+         name,
+         email,
+         password: hashedPassword,
+         role: "student",
+         department: "",
+         isVerified: false,
+         otp: hashedOtp,
+         otpExpires: otpExpires,
+       });
+    }
+
+    const emailSent = await sendOTPEmail(email, otp, "register");
+    if (!emailSent) {
+      return res.status(500).json({ message: "Failed to send verification email. Please try again later." });
+    }
+
+    res.status(200).json({ step: "otp_required", email, message: "OTP sent to your email." });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Verify user email
-// @route   GET /api/auth/verify-email/:token
+// @desc    Verify Registration OTP
+// @route   POST /api/auth/register-verify
 // @access  Public
-export const verifyEmail = async (req, res) => {
+export const verifyRegistrationOtp = async (req, res) => {
   try {
-    const { token } = req.params;
+    const { email, otp } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "Registration session not found." });
+    if (user.isVerified) return res.status(400).json({ message: "User is already verified." });
 
-    const user = await User.findOne({ verificationToken: token });
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid or expired verification token" });
+    if (!user.otp || !user.otpExpires || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: "OTP expired. Please register again to generate a new code." });
     }
 
+    const isMatch = await bcrypt.compare(otp, user.otp);
+    if (!isMatch) return res.status(400).json({ message: "Invalid OTP code." });
+
+    // Mark as verified
     user.isVerified = true;
-    user.verificationToken = undefined;
+    user.otp = undefined;
+    user.otpExpires = undefined;
     await user.save();
 
-    res.status(200).json({ message: "Email successfully verified. You can now log in." });
+    res.status(201).json({ message: "Registration complete. You can now log in." });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+}
 
-// @desc    Authenticate a user
+// @desc    Authenticate a user (Login Init)
 // @route   POST /api/auth/login
 // @access  Public
 export const loginUser = async (req, res) => {
@@ -74,22 +148,79 @@ export const loginUser = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
-    if (user && (await bcrypt.compare(password, user.password))) {
-      if (user.isVerified === false) {
-        return res.status(401).json({ message: "Please verify your email address to log in." });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    if (!user.isVerified && user.role === "student" && email !== "teststudent@cdgi.edu.in") {
+      return res.status(401).json({ message: "Please register and verify your email address first." });
+    }
+
+    // Two-factor OTP strictly for students (except test student)
+    if (user.role === "student" && email !== "teststudent@cdgi.edu.in") {
+      const otp = generateOTP();
+      const salt = await bcrypt.genSalt(10);
+      user.otp = await bcrypt.hash(otp, salt);
+      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+      await user.save();
+
+      const emailSent = await sendOTPEmail(email, otp, "login");
+      if (!emailSent) {
+        return res.status(500).json({ message: "Failed to send login code. Please try again." });
       }
 
-      res.json({
-        _id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(401).json({ message: "Invalid email or password" });
+      return res.status(200).json({ step: "otp_required", email, message: "We've sent a login code to your email." });
     }
+
+    // Default fast-track login for staff/admin
+    res.json({
+      _id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      token: generateToken(user._id),
+    });
+    
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Verify Login OTP
+// @route   POST /api/auth/login-verify
+// @access  Public
+export const verifyLoginOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "Login session not found." });
+
+    if (user.role !== "student") {
+       return res.status(400).json({ message: "This route is exclusively for student authentication." });
+    }
+
+    if (!user.otp || !user.otpExpires || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: "OTP expired. Please try logging in again." });
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.otp);
+    if (!isMatch) return res.status(400).json({ message: "Invalid OTP code." });
+
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    res.json({
+      _id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      token: generateToken(user._id),
+    });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -100,7 +231,7 @@ export const loginUser = async (req, res) => {
 // @access  Private
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select("-password -otp -otpExpires");
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
